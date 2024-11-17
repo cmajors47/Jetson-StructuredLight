@@ -4,6 +4,11 @@
 
 * This library contains all of the code necessary for running a calibration and a scan of your specific settup
 
+## Jetson Nano Pre Installed Requirements
+1. Python 3.6.9
+2. git
+
+
 ## Install Requirements
 ### You May copy and paste the following lines into your terminal:
 
