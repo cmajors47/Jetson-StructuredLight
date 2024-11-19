@@ -8,7 +8,7 @@ from typing import List
 
 class ScanGrabber:
     # Grabs all of the images following the given naming convention. Initialize sets these variables.
-    def __init__(self, target_directory: str = "/home/slc/Backend2/captureOptimized_0", lnx_photo_search: str = "capture_*.png"):
+    def __init__(self, target_directory: str = "./captureUndistortedOptim", lnx_photo_search: str = "capture_*.png"):
         # Define variables to be used in other functions
         self.target_directory = target_directory
         self.lnx_photo_search = lnx_photo_search

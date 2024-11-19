@@ -22,14 +22,14 @@ def projectAndCapture(camera,proj_img, pattern_count, target_dir):
 
 def main():
     # Set max captures to take
-    num_captures = 3
+    num_captures = 5
 
     # Initialize the camera and set camera properties
     camera = cv.VideoCapture(-1)
     camera_frame = (1920, 1080) #x,y dimensions (same as projector)
     camera.set(cv.CAP_PROP_FRAME_WIDTH, camera_frame[0])
     camera.set(cv.CAP_PROP_FRAME_HEIGHT, camera_frame[1]) 
-    camera.set(cv.CAP_PROP_EXPOSURE, -2)
+    camera.set(cv.CAP_PROP_EXPOSURE, 0)
     # Note that the internal buffer will not be updated. Two reads need to be done to get one photo - the first to clear the buffer, the second
     # to get the most recent input. Check Link: https://www.reddit.com/r/opencv/comments/p415cc/question_how_do_i_get_a_fresh_frame_taken_after/
     camera.set(cv.CAP_PROP_BUFFERSIZE, 1)

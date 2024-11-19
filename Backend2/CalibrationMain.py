@@ -17,7 +17,7 @@ cvv = 6 #Number of vertices of the checkerboard on the verticle plane
 chv = 8 #Number of vertices of the checkerboard on the horizontal plane
 csize = 25 #Size of checkerboard squares in milimeters
 graycode_step = 1 #Step size of the graycode, this should not have to change unless you are testing different orientations of patterns.
-
+os.system("v4l2-ctl -d /dev/video1 --set-ctrl=exposure_auto=1")
 if os.path.exists("./graycode_pattern"):
     print("Graycode pattern folder already exists, assuming user is just recalibrating with the same system. If this is not the case please delete the graycode_pattern folder and try again")
     time.sleep(5)

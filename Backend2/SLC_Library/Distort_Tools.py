@@ -1,6 +1,5 @@
 import cv2 as cv
 import os
-import numpy as np
 '''
 This object provides an easy way to access the calibration results (inserted as a .xml file, with the projector and camera parameters) and
 to undistort images as needed. This only requires the file path of a well structured calibration_result.xml to function.
