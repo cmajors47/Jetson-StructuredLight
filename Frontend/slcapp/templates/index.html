@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>Index</h1>
+{% endblock %}
+
+{% block content %}
+  <!-- Sidebar -->
+  <nav id="sidebar" class="col-md-3 bg-light">
+    <!--<div class="position-sticky">-->
+        <!-- File Path Field -->
+        <div class="p-3">
+          <input type="text" class="form-control" placeholder="Enter file path">
+        </div>
+        <h6><a class="nav navbar-brand" href="{{ url_for('goUpFileView') }}"><span data-feather="arrow-up"></span> {{ rootFolder }}</h6></a>
+        <ul class="nav flex-column">
+          {% for f in files %}
+            <li class="nav-item">
+              {% if f.isDir %}
+                <a class="nav-link" href="{{ url_for('changeFileView', filename=f.name) }}">
+                  <span data-feather="folder"></span>
+                  {{ f.name }}
+                </a>
+              {% else %}
+                <a class="nav-link" href="{{ url_for('showFileContents', filename=f.name) }}">
+                  <span data-feather="file-text"></span>
+                  {{ f.name }}
+                </a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        <hr>
+
+    <!--</div>-->
+  </nav>
+  
+  <div class="col-lg-2 flex-grow-1 h-100">
+    <ul class="nav nav-tabs" data-bs-tabs="tabs">
+      <li class="nav-item">
+        <a class="nav-link" aria-current="true" data-bs-toggle="tab" href="#text-display">Text</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#iframe-container">3D</a>
+      </li>
+    </ul>
+    <div class="tab-content h-100 w-100">
+      <div id="text-display" class="tab-pane h-100 w-100">
+        <div class="form-floating h-100 w-100">
+          <textarea class="form-control h-100 w-100" id="output" readonly rows="18" cols="50" name="output" style="align-self:normal;resize:none;overflow-y:auto;font-family:monospace, Consolas, Courier New, 'Courier New', Courier; font-size:small;">{{ text }}</textarea>
+          <label>{{ activeFileName }}</label>
+        </div>
+      </div>
+
+      <!-- iframe -->
+      <div id="iframe-container" class="tab-pane active h-100 w-100">
+        <!-- Progress Bar -->
+        <div id="3dviewport" class="row h-100"></div>
+      </div>
+      <div class="progress mt-2" style="height: 30px;">
+        <div class="progress-bar bg-success" role="progressbar" style="width: 70%;" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100">70%</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Box with Text -->
+  <div class="border p-3 col-lg-2 d-flex flex-column" >
+    <h5><span data-feather="align-left"></span> Model Info</h5>
+    <p style="white-space: pre-wrap;"># Vertices:
+# Edges: 
+# Faces: 
+# Triangles:</p>
+
+    <!-- Display flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-danger">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <!-- Buttons -->
+     
+    <div class="mt-auto">
+      <script type="module">
+        import { displayModel } from '/static/3dviewport.js';
+        displayModel("{{ url_for('static', filename='ToyCar.glb') }}");
+      </script>
+      <br>
+      <button class="btn btn-secondary btn-block mb-2">Save As...</button>
+      <form action="/scanButtonPress" method="POST">
+        <select name="cam_resolution" class="form-select mb-2 p-2 w-100">
+          <option selected>Camera Resolutions</option>
+          <option value="854">(16:9) 854×480</option>
+          <option value="1280">(16:9) 1280×720</option>
+          <option value="1920">(16:9) 1920×1080</option>
+          <option value="3840">(16:9) 3840×2160</option>
+        </select>
+        <input type="text" name="graycodeDir" class="form-control mb-2" placeholder="Gray Code Directory">
+        <button class="btn btn-success btn-block" type="submit">START SCAN</button>
+        <form action="/cancelButtonPress" method="POST">
+          <button class="btn btn-danger btn-block" type="submit">TERMINATE</button>
+        </form>
+      </form>
+      <br><br>
+      <form action="/calibButtonPress" method="POST">
+        <select name="cam_resolution" class="form-select mb-2 p-2 w-100">
+          <option selected>Camera Resolutions</option>
+          <option value="854">(16:9) 854×480</option>
+          <option value="1280">(16:9) 1280×720</option>
+          <option value="1920">(16:9) 1920×1080</option>
+          <option value="3840">(16:9) 3840×2160</option>
+        </select>
+        <input type="text" name="graycodeDir" class="form-control mb-2" placeholder="Gray Code Directory">
+        <button class="btn btn-success btn-block" type="submit">CALIB</button>
+        <form action="/cancelButtonPress" method="POST">
+          <button class="btn btn-danger btn-block" type="submit">TERMINATE</button>
+        </form>
+      </form>
+    </div>
+  </div>
+{% endblock %}
