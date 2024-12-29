@@ -13,38 +13,6 @@ import open3d as o3d
 
 
 def calibrate_main(proj_height,proj_width,chess_vert,chess_hori,chess_block_size,graycode_step):
-    # parser = argparse.ArgumentParser(
-    #     description='Calibrate pro-cam system using chessboard and structured light projection\n'
-    #     '  Place captured images as \n'
-    #     '    ./ --- capture_1/ --- graycode_00.png\n'
-    #     '        |              |- graycode_01.png\n'
-    #     '        |              |        .\n'
-    #     '        |              |        .\n'
-    #     '        |              |- graycode_??.png\n'
-    #     '        |- capture_2/ --- graycode_00.png\n'
-    #     '        |              |- graycode_01.png\n'
-    #     '        |      .       |        .\n'
-    #     '        |      .       |        .\n',
-    #     formatter_class=argparse.RawTextHelpFormatter
-    # )
-
-    # parser.add_argument('proj_height', type=int, help='projector pixel height')
-    # parser.add_argument('proj_width', type=int, help='projector pixel width')
-    # parser.add_argument('chess_vert', type=int,
-    #                     help='number of cross points of chessboard in vertical direction')
-    # parser.add_argument('chess_hori', type=int,
-    #                     help='number of cross points of chessboard in horizontal direction')
-    # parser.add_argument('chess_block_size', type=float,
-    #                     help='size of blocks of chessboard (mm or cm or m)')
-    # parser.add_argument('graycode_step', type=int,
-    #                     default=1, help='step size of graycode')
-    # parser.add_argument('-black_thr', type=int, default=40,
-    #                     help='threashold to determine whether a camera pixel captures projected area or not (default : 40)')
-    # parser.add_argument('-white_thr', type=int, default=5,
-    #                     help='threashold to specify robustness of graycode decoding (default : 5)')
-    # parser.add_argument('-camera', type=str, default=str(),help='camera internal parameter json file')
-
-    # args = parser.parse_args()
 
     proj_shape = (proj_height, proj_width)
     chess_shape = (chess_vert, chess_hori)
@@ -380,7 +348,7 @@ class ScanGrabber:
 
 
 def GenPointCloud():
-    # Define all camera parameters
+    # Define all parameters, this should be changed later to accept variable input from ScanMain.py
     proj_w = 1280
     proj_h = 720
     cam_w = 1920
@@ -408,19 +376,16 @@ def GenPointCloud():
 
     point_index = 0
 
-    # Define calibration parameters
+    # Grab the calibration results
     calib_data = CalibrationResults("calibration_result.xml")
 
-    # Define intrinsic matrices of camera and projector
     K_cam = calib_data.cam_int
     K_proj = calib_data.proj_int
 
-    # Define extrinsic matrices between camera and projector
     rot = calib_data.rotation
     trans = calib_data.translation
 
-    # Initialize Depth Coordinates
-    depth = np.zeros((cam_h, cam_w, 3), dtype=np.float64)
+    # Create shadow mask
     shadow_mask = cv.threshold(abs(white_img - black_img), black_thr, 1, cv.THRESH_BINARY)[1]
 
     point_cloud = []
@@ -441,25 +406,22 @@ def GenPointCloud():
                     point_index += 1
 
 
-    # Assuming you already have cam_points, proj_points, and the calibration matrices
-
     # Create 3x4 projection matrices for both the camera and the projector
     P_cam = K_cam @ np.hstack([np.eye(3), np.zeros((3, 1))])  # Camera projection matrix (3x4)
     P_proj = K_proj @ np.hstack([rot, trans.reshape(-1, 1)])  # Projector projection matrix (3x4)
 
     # Convert points to homogeneous coordinates by adding a third coordinate (1)
-    cam_points_homog = np.hstack([cam_points, np.ones((cam_points.shape[0], 1))])  # (N, 3) -> (N, 3, 1)
-    proj_points_homog = np.hstack([proj_points, np.ones((proj_points.shape[0], 1))])  # (N, 3) -> (N, 3, 1)
+    cam_points_homog = np.hstack([cam_points, np.ones((cam_points.shape[0], 1))]) 
+    proj_points_homog = np.hstack([proj_points, np.ones((proj_points.shape[0], 1))])
 
     # Convert to the correct shape (2, N) for triangulation
-    cam_points_homog = cam_points_homog[:, :2].T  # (2, N)
-    proj_points_homog = proj_points_homog[:, :2].T  # (2, N)
+    cam_points_homog = cam_points_homog[:, :2].T  
+    proj_points_homog = proj_points_homog[:, :2].T 
 
-    # Triangulate points using cv2.triangulatePoints()
+    # Triangulate points
     points_3d_homog = cv.triangulatePoints(P_cam, P_proj, cam_points_homog, proj_points_homog)
 
-    # Now points_3d_homog contains the 4D homogeneous coordinates
-    # Validate W and normalize homogeneous coordinates to get Euclidean 3D points (divide by W)
+    # Validate W and normalize homogeneous coordinates to get 3D points (divide by W)
     W = points_3d_homog[3, :]  # Extract W (the 4th row)
 
     # Check for points where W is zero or very small
@@ -470,14 +432,9 @@ def GenPointCloud():
 
     # Only normalize points where W is valid (not zero or near-zero)
     points_3d[:, valid_points_mask] = points_3d_homog[:3, valid_points_mask] / W[valid_points_mask]
-
-    # Now points_3d contains the 3D coordinates in Euclidean space (3xN)
     point_cloud = points_3d.T  # Convert to Nx3 format
-    # point_cloud[:, 0] = -point_cloud[:, 0]  # Negate x-axis
-    # point_cloud[:, 1] = -point_cloud[:, 1]  # Negate y-axis
-    # point_cloud[:, 2] = -point_cloud[:, 2]  # Negate z-axis 
     
-    # Normalize Colors - they must be floats
+    # Normalize Colors
     colors = colors[0:point_index, :].astype(np.float32) / 255
 
     fs = cv.FileStorage('3Dpoints.xml', cv.FILE_STORAGE_WRITE)
@@ -491,21 +448,11 @@ def GenPointCloud():
 
 def constructImage(height, width, pattern, step):
     img = np.zeros((height, width), np.uint8)
-    #for y in range(height):
-        #for x in range(width):
-        #    img[y, x] = pattern[int(y/step), int(x/step)]
     # List comprehension is faster than for loop
     img[:] = [[pattern[int(y/step), int(x/step)] for x in range(width)] for y in range(height)]
     return img
 
 def GenGraycodeImgs_main(proj_height,proj_width,graycode_step):
-    # parser = argparse.ArgumentParser(
-    #     description='Generate graycode pattern images')
-    # parser.add_argument('proj_height', type=int, help='projector pixel height')
-    # parser.add_argument('proj_width', type=int, help='projector pixel width')
-    # parser.add_argument('-graycode_step', 
-    #                     type=int, default=1,
-    #                     help='step size of Gray Code [default:1](increase if moire appears)')
     TARGET_DIR = './graycode_pattern'
     CAPTURED_DIR = './capture_*'
     step = graycode_step
@@ -614,12 +561,11 @@ def Scan_main(CAMERA_WIDTH, CAMERA_HEIGHT):
 
     # Repeat process for each capture
     [ScanProjectAndCapture(camera,projection_patterns[file_name], j, target_dirs) for j, file_name in enumerate(projection_patterns)]
-    # for i in enumerate(target_dirs):
-        
-    #     print(f"Capture ({i+1} of {NUM_CAPTURES}) complete")
 
     # Release the camera
     camera.release()
+
+### POINT CLOUD DISPLAY AND SAVE ###
 
 def PointCloudDisplay():
     # Load the points from the file
@@ -627,30 +573,27 @@ def PointCloudDisplay():
     points = saved_cali.getNode("a3D_Points").mat()
     colors = saved_cali.getNode("Colors").mat()
 
-    # Ensure points has the shape (1080, 1920, 3) and dtype (float32)
+    #Outputs points shape and dtype for debugging
     print("Original points shape:", points.shape)
     print("Original points dtype:", points.dtype)
 
-    # Reshape points to (height * width, 3) = (1080 * 1920, 3)
+    # Reshape points to work with Open3D
     points_reshaped = points.reshape((-1, 3))
-    #points_reshaped = points_reshaped[::100]
-    # Convert to float64 for Open3D
-    #points_reshaped = points_reshaped.astype(np.float64)
 
-    # Remove any rows with NaN or Inf values
+    # Remove infinite points
     valid_points = points_reshaped[np.isfinite(points_reshaped).all(axis=1)]
 
     # Convert the valid points to an Open3D PointCloud
     point_cloud = o3d.geometry.PointCloud()
     point_cloud.points = o3d.utility.Vector3dVector(valid_points)
     point_cloud.colors = o3d.utility.Vector3dVector(colors)
-    #cl, ind = point_cloud.remove_statistical_outlier(nb_neighbors=50, std_ratio=2.0)
-    #filtered_pcd = point_cloud.select_by_index(ind)
 
     # Visualize the point cloud
     o3d.io.write_point_cloud("output_point_cloud.ply", point_cloud)
     o3d.visualization.draw_geometries([point_cloud])
 
+
+### MESH DISPLY AND SAVE ###
 
 class MeshGenerator:
     """This generates a Mesh using a point cloud, letting one display and save it.
