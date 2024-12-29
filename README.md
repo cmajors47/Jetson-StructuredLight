@@ -36,6 +36,8 @@ Type "nano .bashrc" into the command line to enter into the file. You can now us
 
 We will need to create a few more lines in the .bashrc file to enable the GUI on startup. Add these lines under everything else:
 
+BEFORE ADDING THESE THREE LINES SEE THE INTIAL MESSAGE UNDER "CONNECTION TO THE JETSON FROM A WINDOWS PC". THESE CAN BE SAFELY SKIPPED FOR THE TIME BEING AND YOU CAN JUMP TO THE LINE AFTER
+
 1. export FLASK_APP=slcapp
 2. export FLASK_ENV=development
 3. /home/slc/Jetson-StructuredLight/Frontend/start_gunicorn.sh
@@ -56,6 +58,8 @@ The following are the necessary inputs that must be known and entered into the G
 
 
 ## Connection To The Jetson From a Windows PC
+
+This step is not currently necessary and you can skip to the "Using The Structured Light Camera" section. There have been many updates to the Backend in the past 2 weeks and there has not been time to update the Frontend to compensate for this. An update will be pushed to this github to update this at some point in the future and this message will be removed.
 
 The first step once you obtain all of this information is to connect a laptop or computer to the Jetson Nano microcontroller via Ethernet cable.
 
@@ -90,7 +94,11 @@ Once you have done this, you can follow the README in the Frontend Folder to ope
 
 ## Using The Structured Light Camera
 
-Place a board with checkerboard pattern (default is 6 vertical vertices and 8 horizontal vertices, this can be changed in the code but recommended to stay the same) in front of the projector projection, and place the camera to the left or right of the projector, pointing at the center of the pattern. 
+Open the terminal again and run this command to get to the right location:
+
+cd Jetson-StructuredLight/Backend
+
+Place a board with checkerboard pattern (default is 6 vertical vertices and 8 horizontal vertices, this can be changed in the code but recommended to stay the same) in front of the projector projection, and place the camera to the left or right of the projector, pointing at the center of the pattern.
 
 Run this: python3 CalibrationMain.py
 
@@ -102,7 +110,7 @@ Once this has completed, you will know when you click a button on the keyboard d
 
 Without moving the camera or projector, place an object in front of the camera and projector, preferably near where you placed the checkerboard. Next run : python3 ScanMain.py
 
-ScanMain.py will then display images and take pictures, it will also generate the point cloud in a .ply file, and a mesh in a .stl file. 
+ScanMain.py will then display images and take pictures, it will also generate the point cloud in a .ply file, and a mesh in a .stl file. ScanMain will take a few minutes to complete, you will have to give it some time.
 
 This will be saved in the Backend folder and you can open them in a free aplication like meshlabs. 
 
