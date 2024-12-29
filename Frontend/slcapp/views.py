@@ -53,7 +53,7 @@ def showFileContents(filename):
 
   return redirect(url_for('index'))
 
-#/home/slc/Backend2/CalibrationMain.py
+# Deprecated
 @current_app.route('/calibButtonPress', methods=['POST'])
 def calibButtonPress():
   if len(request.form.get('cam_resolution')) > 0 and len(request.form.get('graycodeDir')) > 0:
@@ -76,6 +76,7 @@ def calibButtonPress():
   return redirect(url_for('index'))
 
 
+# Deprecated
 @current_app.route('/scanButtonPress', methods=['POST'])
 def scanButtonPress():
   if len(request.form.get('cam_resolution')) > 0 and len(request.form.get('graycodeDir')) > 0:
@@ -97,6 +98,40 @@ def scanButtonPress():
     flash("Camera Resolution or Gray Code Directory not provided.")
   return redirect(url_for('index'))
 
+@current_app.route('/submit', methods=['POST'])
+def submit():
+  if len(request.form.get('cam_resolution')) > 0 and len(request.form.get('graycodeDir')) > 0:
+    cam_width = int(request.form.get('cam_resolution'))
+    cam_height = int(cam_width * 9 / 16)
+    graycodeDir = request.form.get('graycodeDir')
+
+    action = request.form['action']
+    
+    global subprocess_ref
+
+    if action == 'scan':
+      print('ScanMain.py - running')
+
+      session['runningProcess'] = 'ScanMain.py'
+      subprocess_ref = subprocess.Popen(['python3', '/home/slc/Jetson-StructuredLight/Backend/ScanMain.py', cam_width, cam_height, graycodeDir])
+      print('ScanMain.py - done')
+      session['runningProcess'] = None
+  
+      flash("Scripts have been executed!")
+    elif action == 'calib':
+      print('CalibrationMain.py - running')
+
+      session['runningProcess'] = 'CalibrationMain.py'
+      subprocess_ref = subprocess.Popen(['python3', '/home/slc/Jetson-StructuredLight/Backend/CalibrationMain.py'])
+      print('CalibrationMain.py - done')
+      session['runningProcess'] = None
+  
+      flash("Scripts have been executed!")
+    else:
+      print("Action is not scan or calib")
+  
+  return redirect(url_for('index'))
+
 @current_app.route('/cancelButtonPress', methods=['POST'])
 def cancelButtonPress():
   global subprocess_ref
@@ -109,6 +144,7 @@ def cancelButtonPress():
     flash("No script is currently running.")
   return redirect(url_for('index'))
 
+# Deprecated
 @current_app.route('/model')
 def serveModel():
-  return send_file("/home/slc/Jetson-StructuredLight/Frontend/slcapp/static/ToyCar.glb", mimetype="model/gltf-binary")
+  return send_file("/home/slc/Jetson-StructuredLight/Frontend/slcapp/static/bottlePC.ply", mimetype="application/ply")

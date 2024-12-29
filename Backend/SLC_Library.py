@@ -357,6 +357,26 @@ class ScanGrabber:
             final.append(img)
         
         return final
+    
+    def GetColorImg(self) -> cv.Mat:
+        """Gets the Fully illuminated image in full color
+
+        Raises:
+            Exception: failed to find the proper search path
+
+        Returns:
+            cv.Mat: The white image in RGB format
+        """
+        # Find the white photo in color
+        # Find the photo names, note that it is in alphabetical order due to sorted
+        photo_names = sorted(glob.glob(self.target_directory + "/" + self.lnx_photo_search))
+        if len(photo_names) == 0:
+            raise Exception(f"Failed to find any photos with the following search path: {self.target_directory + self.lnx_photo_search}")
+
+        white_img = cv.imread(photo_names[-2])
+        white_img = cv.cvtColor(white_img, cv.COLOR_BGR2RGB)
+        
+        return white_img
 
 
 def GenPointCloud():
@@ -377,12 +397,14 @@ def GenPointCloud():
     # Define file locations
     scan_grab = ScanGrabber("./ScanCaptures")
     imgs = scan_grab.GetPhotos()
+    colored_img = scan_grab.GetColorImg()
 
     black_img = imgs.pop()
     white_img = imgs.pop()
 
     cam_points = np.empty((cam_w*cam_h, 2), np.uint16)
     proj_points = np.empty((cam_w*cam_h, 2), np.uint16)
+    colors = np.empty((cam_w*cam_h, 3), np.uint8)
 
     point_index = 0
 
@@ -413,27 +435,11 @@ def GenPointCloud():
                     cam_points[point_index] = (x, y)
                     proj_points[point_index] = (point[0], point[1]) 
 
-                    # Store corresponding points for triangulation
-                    cam_pixel = np.array([x, y, 1.0])  # Camera pixel (x, y, 1)
-                    proj_pixel = np.array([point[0], point[1], 1.0])  # Projector pixel (u, v, 1)
-
-                    # Add points to lists
-                    cam_points_list = (x,y)
-                    proj_points_list = proj_points[point_index]
+                    # Add point color to the list
+                    colors[point_index, :] = colored_img[y,x, :]
 
                     point_index += 1
 
-    # Convert to homogeneous coordinates for triangulation (2D homogeneous coordinates)
-    cam_points_homog = np.hstack([cam_points, np.ones((cam_points.shape[0], 1))])  # (N, 3) -> (x, y, 1)
-    proj_points_homog = np.hstack([proj_points, np.ones((proj_points.shape[0], 1))])  # (N, 3) -> (u, v, 1)
-
-    # Transpose to get the shape (2, N) as required by cv2.triangulatePoints()
-    cam_points_homog = cam_points_homog[:, :2].T  # (2, N)
-    proj_points_homog = proj_points_homog[:, :2].T  # (2, N)
-
-    # Assuming you already have cam_points, proj_points, and the calibration matrices
-
-    # Create 3x4 projection matrices for both the camera and the projector
 
     # Assuming you already have cam_points, proj_points, and the calibration matrices
 
@@ -448,9 +454,6 @@ def GenPointCloud():
     # Convert to the correct shape (2, N) for triangulation
     cam_points_homog = cam_points_homog[:, :2].T  # (2, N)
     proj_points_homog = proj_points_homog[:, :2].T  # (2, N)
-
-    # Define an empty array to store the result
-    points_3d_homog = np.empty((4, cam_points_homog.shape[1]), dtype=np.float32)
 
     # Triangulate points using cv2.triangulatePoints()
     points_3d_homog = cv.triangulatePoints(P_cam, P_proj, cam_points_homog, proj_points_homog)
@@ -473,9 +476,13 @@ def GenPointCloud():
     # point_cloud[:, 0] = -point_cloud[:, 0]  # Negate x-axis
     # point_cloud[:, 1] = -point_cloud[:, 1]  # Negate y-axis
     # point_cloud[:, 2] = -point_cloud[:, 2]  # Negate z-axis 
+    
+    # Normalize Colors - they must be floats
+    colors = colors[0:point_index, :].astype(np.float32) / 255
 
     fs = cv.FileStorage('3Dpoints.xml', cv.FILE_STORAGE_WRITE)
-    fs.write('a3D_Points', point_cloud)
+    fs.write('a3D_Points', point_cloud[0:point_index, :])
+    fs.write('Colors', colors)
 
 
 
@@ -556,8 +563,7 @@ def ScanProjectAndCapture(camera, proj_img, pattern_count, target_dir):
         camera.release()
         raise Exception("Failed to take a photo with the camera.")
     
-    gray_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    cv.imwrite(f"{target_dir}/capture_{pattern_count:02d}.png", gray_img)
+    cv.imwrite(f"{target_dir}/capture_{pattern_count:02d}.png", img)
     print(f"SAVED: {target_dir}/capture_{pattern_count:02d}.png")
     return
 
@@ -619,6 +625,7 @@ def PointCloudDisplay():
     # Load the points from the file
     saved_cali = cv.FileStorage("3Dpoints.xml", cv.FILE_STORAGE_READ)
     points = saved_cali.getNode("a3D_Points").mat()
+    colors = saved_cali.getNode("Colors").mat()
 
     # Ensure points has the shape (1080, 1920, 3) and dtype (float32)
     print("Original points shape:", points.shape)
@@ -636,32 +643,39 @@ def PointCloudDisplay():
     # Convert the valid points to an Open3D PointCloud
     point_cloud = o3d.geometry.PointCloud()
     point_cloud.points = o3d.utility.Vector3dVector(valid_points)
+    point_cloud.colors = o3d.utility.Vector3dVector(colors)
     #cl, ind = point_cloud.remove_statistical_outlier(nb_neighbors=50, std_ratio=2.0)
     #filtered_pcd = point_cloud.select_by_index(ind)
 
     # Visualize the point cloud
     o3d.io.write_point_cloud("output_point_cloud.ply", point_cloud)
-    #o3d.visualization.draw_geometries([point_cloud])
+    o3d.visualization.draw_geometries([point_cloud])
 
 
 class MeshGenerator:
     """This generates a Mesh using a point cloud, letting one display and save it.
     """
     
-    def __init__(self, point_cloud: np.ndarray, normal_estimation_point_ref: int = 100, filter_point_cloud: bool = True,
-                vox_size: float = .05, nb_neighbors:int = 1000, std_ratios= 1.5, rgb_colors: float = [1, 0, 0]) -> None:
-        """Creates a mesh based off the input point cloud. 
+    def __init__(self, point_cloud: np.ndarray, colors: np.ndarray, normal_estimation_point_ref: int = 100, filter_point_cloud: bool = True,
+                 nb_neighbors:int = 1000, std_ratios= 1.5, rgb_colors: float = [1, 0, 0]) -> None:
+        """Creates a point cloud, filters it, and then generates a Mesh
 
         Args:
-            point_cloud (numpy.ndarray): The point cloud to be converted into a mesh.
+            point_cloud (np.ndarray): The point Cloud in the form of N X 3
+            colors (np.ndarray): An array of colors, normalized for values 0 to 1 in the form of N X 3
+            normal_estimation_point_ref (int, optional): Ref points for normal estimation. Defaults to 100.
+            filter_point_cloud (bool, optional): Decides if the point cloud should be filtered. Defaults to True.
+            nb_neighbors (int, optional): Ref points for statistical filtering. Defaults to 1000.
+            std_ratios (float, optional): Defines how many std devs above the mean qualifies as an outlier. Defaults to 1.5.
+            rgb_colors (float, optional): Color to pain the mesh. Defaults to [1, 0, 0].
         """
-        # Setup the point cloud in an open3d friendly format
+        # Setup the point cloud in an open3d friendly format, then insert points and colors
         self.point_cloud = o3d.geometry.PointCloud()
         self.point_cloud.points = o3d.utility.Vector3dVector(point_cloud)
+        self.point_cloud.colors =  o3d.utility.Vector3dVector(colors)
         
         if filter_point_cloud:
             # down samples, then removes outlier
-            self.point_cloud = self.point_cloud.voxel_down_sample(voxel_size=vox_size)
             self.point_cloud, ind = self.point_cloud.remove_statistical_outlier(nb_neighbors=nb_neighbors, std_ratio=std_ratios)
         
         self.point_cloud.estimate_normals()
@@ -678,17 +692,24 @@ class MeshGenerator:
         
     
 
-    def SaveMesh(self, file_path: str) -> None:
-        """_summary_
+    def SaveMesh(self, file_path_mesh: str, file_path_point_cloud: str = None) -> None:
+        """Saves the Mesh and the point cloud (optionally)
 
         Args:
-            file_path (str): The file path to save to. this can be ('.ply', '.stl', '.obj') file extensions.
-
+            file_path_mesh (str): File to write mesh to
+            file_path_point_cloud (str): File to write point cloud to. Defaults to None - nothing is written.
         """
 
-        isWritten = o3d.io.write_triangle_mesh(file_path, self.mesh)
+        isWritten = o3d.io.write_triangle_mesh(file_path_mesh, self.mesh)
+        
         if not isWritten:
-            print(f"The file {file_path} failed to write.")
+            print(f"The file {file_path_mesh} failed to write.")
+            
+        if file_path_point_cloud:
+            isWritten = o3d.io.write_point_cloud(file_path_point_cloud, self.point_cloud)
+            
+            if not isWritten:
+                print(f"The file {file_path_mesh} failed to write.")
 
     def DisplayMesh(self, showPointCloudToo: bool = False) -> None:
         """Displays the Mesh and optionally the point cloud.
@@ -704,9 +725,11 @@ class MeshGenerator:
 
 def GenMesh():
 
-    file_path = "mesh.stl"
+    file_path = "mesh.ply"
+    pcd_file_path = "filtered_pcd.ply"
     saved_cali = cv.FileStorage("3Dpoints.xml", cv.FILE_STORAGE_READ)
+    colors = saved_cali.getNode("Colors").mat()
     points = saved_cali.getNode("a3D_Points").mat()
-    points = np.array(points, dtype=np.float64)
-    mesh = MeshGenerator(points)
-    mesh.SaveMesh(file_path)
+    mesh = MeshGenerator(points, colors)
+    mesh.SaveMesh(file_path, pcd_file_path)
+    mesh.DisplayMesh(True)

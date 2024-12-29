@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const container = document.getElementById('3dviewport');
 const scene = new THREE.Scene();
@@ -37,7 +39,7 @@ export function displayModel(filename) {
   	scene.add(model);
 
     model.position.set(0, 0, 0); 
-    model.scale.set(100,100,100)
+    model.scale.set(100,100,100);
     console.log(model);
     model.traverse((child) => {
       if (child.isMesh) {
@@ -50,5 +52,34 @@ export function displayModel(filename) {
   }, undefined, function(error) {
   	console.error(error);
   });
+  // Add controls
+  const controls = new OrbitControls(camera, renderer.domElement);
   return filename
 };
+////////////////
+
+export function displayPoints(filename) {
+  const loader = new PLYLoader();
+  let numPoints = 0;
+  loader.load(filename, function(geometry) {
+    numPoints = geometry.attributes.position.count;
+    const pElement = document.getElementById('desc');
+    pElement.textContent = '# Points: ' + numPoints;
+
+    const material = new THREE.PointsMaterial({color: 0x759cff, size: 1, sizeAttenuation: false});
+    geometry.computeVertexNormals(); // Ensure normals are computed for shading
+    const object = new THREE.Points(geometry, material);
+    object.position.set(0, 0, 0);
+    object.scale.set(0.001, 0.001, 0.001);
+
+  	scene.add(object);
+    camera.position.set(4, 3, 5);  // Move the camera back
+    camera.lookAt(object.position); // Ensure the camera looks at the model
+  });
+  // Add controls
+  const controls = new OrbitControls(camera, renderer.domElement);
+
+  console.log(scene.children)
+
+  return filename
+}

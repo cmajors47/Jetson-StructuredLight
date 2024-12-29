@@ -16,4 +16,4 @@ dir = "./ScanCaptures"
 SLC_Library.Scan_main(cam_width,cam_height)
 SLC_Library.GenPointCloud()
 SLC_Library.PointCloudDisplay()
-SLC_Library.GenMesh()
+#SLC_Library.GenMesh()

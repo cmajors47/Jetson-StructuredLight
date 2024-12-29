@@ -7,7 +7,6 @@
 {% block content %}
   <!-- Sidebar -->
   <nav id="sidebar" class="col-md-3 bg-light">
-    <!--<div class="position-sticky">-->
         <!-- File Path Field -->
         <div class="p-3">
           <input type="text" class="form-control" placeholder="Enter file path">
@@ -31,8 +30,6 @@
           {% endfor %}
         </ul>
         <hr>
-
-    <!--</div>-->
   </nav>
   
   <div class="col-lg-2 flex-grow-1 h-100">
@@ -54,12 +51,13 @@
 
       <!-- iframe -->
       <div id="iframe-container" class="tab-pane active h-100 w-100">
-        <!-- Progress Bar -->
         <div id="3dviewport" class="row h-100"></div>
       </div>
+      <!--
       <div class="progress mt-2" style="height: 30px;">
         <div class="progress-bar bg-success" role="progressbar" style="width: 70%;" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100">70%</div>
       </div>
+      -->
 
     </div>
   </div>
@@ -67,10 +65,7 @@
   <!-- Box with Text -->
   <div class="border p-3 col-lg-2 d-flex flex-column" >
     <h5><span data-feather="align-left"></span> Model Info</h5>
-    <p style="white-space: pre-wrap;"># Vertices:
-# Edges: 
-# Faces: 
-# Triangles:</p>
+    <p style="white-space: pre-wrap;" id="desc"># Points: </p>
 
     <!-- Display flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -84,39 +79,36 @@
      
     <div class="mt-auto">
       <script type="module">
-        import { displayModel } from '/static/3dviewport.js';
-        displayModel("{{ url_for('static', filename='ToyCar.glb') }}");
+        import { displayPoints } from '/static/3dviewport.js';
+        displayPoints("{{ url_for('static', filename='pointcloud_output.ply') }}");
       </script>
       <br>
       <button class="btn btn-secondary btn-block mb-2">Save As...</button>
-      <form action="/scanButtonPress" method="POST">
+      
+
+      <form action="/submit", method="POST">
         <select name="cam_resolution" class="form-select mb-2 p-2 w-100">
-          <option selected>Camera Resolutions</option>
+          <option selected>Camera Resolution</option>
+          <option value="854">(16:9) 854×480</option>
+          <option value="1280">(16:9) 1280×720</option>
+          <option value="1920">(16:9) 1920×1080</option>
+          <option value="3840">(16:9) 3840×2160</option>
+        </select>
+        <select name="proj_resolution" class="form-select mb-2 p-2 w-100">
+          <option selected>Projector Resolution</option>
           <option value="854">(16:9) 854×480</option>
           <option value="1280">(16:9) 1280×720</option>
           <option value="1920">(16:9) 1920×1080</option>
           <option value="3840">(16:9) 3840×2160</option>
         </select>
         <input type="text" name="graycodeDir" class="form-control mb-2" placeholder="Gray Code Directory">
-        <button class="btn btn-success btn-block" type="submit">START SCAN</button>
-        <form action="/cancelButtonPress" method="POST">
-          <button class="btn btn-danger btn-block" type="submit">TERMINATE</button>
-        </form>
+
+        <button class="btn btn-success btn-block" type="submit" name="action" value="calib">CALIBRATE</button>
+        <button class="btn btn-success btn-block" type="submit" name="action" value="scan">START SCAN</button>
       </form>
-      <br><br>
-      <form action="/calibButtonPress" method="POST">
-        <select name="cam_resolution" class="form-select mb-2 p-2 w-100">
-          <option selected>Camera Resolutions</option>
-          <option value="854">(16:9) 854×480</option>
-          <option value="1280">(16:9) 1280×720</option>
-          <option value="1920">(16:9) 1920×1080</option>
-          <option value="3840">(16:9) 3840×2160</option>
-        </select>
-        <input type="text" name="graycodeDir" class="form-control mb-2" placeholder="Gray Code Directory">
-        <button class="btn btn-success btn-block" type="submit">CALIB</button>
-        <form action="/cancelButtonPress" method="POST">
-          <button class="btn btn-danger btn-block" type="submit">TERMINATE</button>
-        </form>
+      <br>
+      <form action="/cancelButtonPress" method="POST">
+        <button class="btn btn-danger btn-block" type="submit">TERMINATE</button>
       </form>
     </div>
   </div>

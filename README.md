@@ -27,6 +27,8 @@ Open the terminal from the Jetson Nano home page and enter the lines below (you 
 8. sudo apt-get install v4l-utils
 9. pip3 install pytest-shutil
 10. pip3 install open3d
+11. pip3 install Flask
+12. pip3 install gunicorn
 
 Next we will edit the .bashrc file, this file contains startup information for the Jetson and is necessary for a few aspects of the project.
 
