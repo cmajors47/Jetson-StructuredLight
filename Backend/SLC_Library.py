@@ -12,8 +12,19 @@ from typing import List
 import open3d as o3d
 
 
-def calibrate_main(proj_height,proj_width,chess_vert,chess_hori,chess_block_size,graycode_step):
 
+def calibrate_main(proj_height,proj_width,chess_vert,chess_hori,chess_block_size,graycode_step):
+    """Creates a .xml file with the extrinsic and intrinisc parameters. This assumes that photos have
+    already been taken. The calibrate function does the actual math.
+
+    Args:
+        proj_height (_type_): pixel height of the projector
+        proj_width (_type_): pixel width of the projector
+        chess_vert (_type_): number of intersections on the chessboard vertically
+        chess_hori (_type_): number of intersections on the chessboard horizontally
+        chess_block_size (_type_): edge length of chess board square
+        graycode_step (_type_): number of graycode steps, usually should be 1
+    """
     proj_shape = (proj_height, proj_width)
     chess_shape = (chess_vert, chess_hori)
     chess_block_size = chess_block_size
@@ -23,6 +34,7 @@ def calibrate_main(proj_height,proj_width,chess_vert,chess_hori,chess_block_size
 
     camera_param_file = str()
 
+    # Check all of the input photos
     dirnames = sorted(glob.glob('./capture_*'))
     if len(dirnames) == 0:
         print('Directories \'./capture_*\' were not found')
@@ -64,6 +76,23 @@ def loadCameraParam(json_file):
         return np.array(P).reshape([3,3]), np.array(d)
 
 def calibrate(dirnames, gc_fname_lists, proj_shape, chess_shape, chess_block_size, gc_step, black_thr, white_thr, camP, camD):
+    """Calibrate
+
+    Args:
+        dirnames (_type_): directories with the scanns
+        gc_fname_lists (_type_): 
+        proj_shape (_type_): pixel height, pixel width
+        chess_shape (_type_): chess heigh, chess width
+        chess_block_size (_type_): side length
+        gc_step (_type_): graycode step
+        black_thr (_type_): threshold for opencv
+        white_thr (_type_): threshold for opencv
+        camP (_type_): previously found cam params (can be empty)
+        camD (_type_): previously found cam params (can be empty)
+
+    Returns:
+        _type_: writes an .xml file
+    """
     objps = np.zeros((chess_shape[0]*chess_shape[1], 3), np.float32)
     objps[:, :2] = chess_block_size * \
         np.mgrid[0:chess_shape[0], 0:chess_shape[1]].T.reshape(-1, 2)
